@@ -72,7 +72,10 @@ const downloadMediaFromList = async (list) => {
         downloadFile.then(res => {
             res.body.pipe(file)
             file.on("finish", () => {
-                file.close()
+                file.close();
+                const infofile = fs.createWriteStream(folder + `${item.id}.json`);
+                infofile.write(JSON.stringify(item));
+                infofile.close();
                 resolve()
             });
             file.on("error", (err) => reject(err));
@@ -99,7 +102,8 @@ const getVideoWM = async (url) => {
                 const urlMedia = res.aweme_list[0].video.download_addr.url_list[0]
                 const data = {
                     url: urlMedia,
-                    id: idVideo
+                    id: idVideo,
+                    desc: res.aweme_list[0].desc
                 }
                 return data
 }
@@ -121,7 +125,8 @@ const getVideoNoWM = async (url) => {
                 const urlMedia = res.aweme_list[0].video.play_addr.url_list[0]
                 const data = {
                     url: urlMedia,
-                    id: idVideo
+                    id: idVideo,
+                    desc: res.aweme_list[0].desc
                 }
                 return data
 }
@@ -140,14 +145,17 @@ const getListVideoByUsername = async (username) => {
     console.log(chalk.green("[*] Getting list video from: " + username))
     var loop = true
     while(loop) {
-        listVideo = await page.evaluate(() => {
-            const listVideo = Array.from(document.querySelectorAll(".tiktok-1s72ajp-DivWrapper > a"));
-            return listVideo.map(item => item.getAttribute('href'));
-        });
+        const data = await page.evaluate(() => document.querySelector('div[data-e2e=user-post-item-list]').outerHTML);
+        // console.log(chalk.red(`[*] ${data} found`))
+        listVideo = data.match(/http(s|)\:\/\/[^\/]+?tiktok[^\/]+?\/[^\/]+?\/video\/\d+/g)
+        // listVideo = await page.evaluate(() => {
+        //     const listVideo = Array.from(document.querySelectorAll(".tiktok-1s72ajp-DivWrapper > a"));
+        //     return listVideo.map(item => item.getAttribute('href'));
+        // });
         console.log(chalk.green(`[*] ${listVideo.length} video found`))
         previousHeight = await page.evaluate("document.body.scrollHeight");
         await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-        await page.waitForFunction(`document.body.scrollHeight > ${previousHeight}`, {timeout: 10000})
+        await page.waitForFunction(`document.body.scrollHeight > ${previousHeight}`, {timeout: 30000})
         .catch(() => {
             console.log(chalk.red("[X] No more video found"));
             console.log(chalk.green(`[*] Total video found: ${listVideo.length}`))
